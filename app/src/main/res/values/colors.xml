@@ -7,4 +7,15 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="white_green">#DFECDB</color>
+    <color name="blue">#5D9CEC</color>
+    <color name="blue_dark">#060E1E</color>
+    <color name="app_title_dark">#060E1E</color>
+    <color name="toolbar_dark">#5D9CEC</color>
+    <color name="bottom_card_dark">#141922</color>
+    <color name="transparent_light">#00FFFFFF</color>
+    <color name="transparent_dark">#00000000</color>
+    <color name="sp_bac">#141922</color>
+    <color name="task_done">#61E757</color>
+    <color name="background_color">#DFECDB</color>
 </resources>
