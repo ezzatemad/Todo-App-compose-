@@ -14,6 +14,7 @@ object Dimen {
     val SmallPadding = 4.dp
     val MediumPadding = 8.dp
     val LargePadding = 16.dp
+    val ExtraLargePadding = 24.dp
 
     val SmallElevation = 4.dp
     val MediumElevation = 8.dp
@@ -23,4 +24,9 @@ object Dimen {
     val SmallOffSet = 16.dp
     val MediumOffSet = 24.dp
     val LargeOffSet = 32.dp
+    val ExtraLargeOffSet = 48.dp
+
+    val SmallRoundShape = 4.dp
+    val MediumRoundShape = 8.dp
+    val LargeRoundShape = 16.dp
 }
