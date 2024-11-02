@@ -22,4 +22,5 @@
         <item>Light</item>
     </string-array>
     <string name="title_activity_splash">SplashActivity</string>
+    <string name="title_activity_edit_task">EditTaskActivity</string>
 </resources>
