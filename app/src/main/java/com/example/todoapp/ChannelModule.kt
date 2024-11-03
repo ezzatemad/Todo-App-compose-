@@ -14,6 +14,7 @@ import kotlinx.coroutines.channels.Channel
 @InstallIn(ViewModelComponent::class)
 class ChannelModule {
 
+
     @Provides
     fun provideUpdateTaskIntentChannel(): Channel<UpdateTaskIntent> {
         return Channel(Channel.UNLIMITED)

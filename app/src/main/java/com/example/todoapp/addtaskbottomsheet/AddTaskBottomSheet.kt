@@ -220,6 +220,7 @@ fun AddTaskBottomSheet(
                                 selectedDate
                             )
                         )
+                        onDismiss()
 
                         // Move the task creation logic to a success handler
                         if (state is InsertState.Success) {
@@ -244,7 +245,7 @@ fun AddTaskBottomSheet(
                         isDescriptionError = true
                     }
                 }
-                onDismiss()
+
             },
             modifier = Modifier
                 .padding(top = Dimen.MediumPadding, bottom = 30.dp),

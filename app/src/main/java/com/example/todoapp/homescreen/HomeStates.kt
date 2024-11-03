@@ -9,6 +9,7 @@ sealed class HomeStates {
     data object Loading : HomeStates()
     data class getAllTasks(val tasksList: List<TaskEntity>) : HomeStates()
     data class TaskIsDone(val taskEntity: TaskEntity) : HomeStates()
+    data class DeleteTaskById(val taskId: Long) : HomeStates()
     data class Error(val message: String) : HomeStates()
 
 }
