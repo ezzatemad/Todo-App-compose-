@@ -1,8 +1,14 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.example.todoapp.homescreen
 
 import android.content.Intent
 import android.util.Log
+import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -18,17 +24,25 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,32 +74,27 @@ fun HomeScreen(
     navController: NavController,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-
     val state by viewModel.state.collectAsState()
+    val tasks by viewModel.tasks.collectAsState() // Observe tasks directly
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         viewModel.channel.trySend(HomeIntent.LoadTasks)
     }
 
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(Dimen.SmallPadding)
     ) {
-
         when (state) {
             is HomeStates.Loading -> {
-                item {
-                    // Show a loading indicator
-                    CircularProgressIndicator(modifier = Modifier.padding(16.dp))
-                }
-
+//                item {
+//                    CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+//                }
             }
 
             is HomeStates.Idle -> {
-                // Show empty state or a message
                 item {
                     Text(
                         text = "No tasks available",
@@ -95,21 +104,28 @@ fun HomeScreen(
                 }
             }
 
-            is HomeStates.getAllTasks -> {
-                val tasks = (state as HomeStates.getAllTasks).tasksList
-
-                items(tasks) { task ->
-                    TaskItem(task = task) {
-                        val intent = Intent(context, EditTaskActivity::class.java).apply {
-                            putExtra("TASK_ID", task.id)
-                            putExtra("TASK_TITLE", task.title)
-                            putExtra("TASK_DESCRIPTION", task.description)
-                            putExtra("TASK_DATE", task.date)
+            is HomeStates.getAllTasks, is HomeStates.DeleteTaskById -> {
+                if (tasks.isEmpty()) {
+                    item {
+                        Text(
+                            text = "No tasks available",
+                            modifier = Modifier.padding(16.dp),
+                            style = TextStyle(fontWeight = FontWeight.Bold)
+                        )
+                    }
+                } else {
+                    items(tasks) { task ->
+                        TaskItem(task = task) {
+                            val intent = Intent(context, EditTaskActivity::class.java).apply {
+                                putExtra("TASK_ID", task.id)
+                                putExtra("TASK_TITLE", task.title)
+                                putExtra("TASK_DESCRIPTION", task.description)
+                                putExtra("TASK_DATE", task.date)
+                            }
+                            context.startActivity(intent)
                         }
-                        context.startActivity(intent)
                     }
                 }
-                Log.d("TAG", "HomeScreen: $tasks")
             }
 
             is HomeStates.Error -> {
@@ -130,13 +146,25 @@ fun HomeScreen(
 }
 
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun TaskItem(task: TaskEntity, viewModel: HomeViewModel = hiltViewModel(), onClick: () -> Unit) {
+fun TaskItem(
+    task: TaskEntity,
+    viewModel: HomeViewModel = hiltViewModel(),
+    onClick: () -> Unit,
+) {
+    val context = LocalContext.current
+    var showMenu by remember { mutableStateOf(false) }
+
     Card(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth(1f)
-            .padding(Dimen.MediumPadding),
+            .padding(Dimen.MediumPadding)
+            .combinedClickable(
+                onClick = { onClick() },
+                onLongClick = { showMenu = true }  // Show dropdown on long click
+            ),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Row(
@@ -172,9 +200,8 @@ fun TaskItem(task: TaskEntity, viewModel: HomeViewModel = hiltViewModel(), onCli
                         contentDescription = null,
                         tint = Color.Black
                     )
-
                     Text(
-                        text = formatDate(task.date!!),
+                        text = formatDate(task.date ?: 0L),
                         fontSize = 12.sp,
                         color = Color.Black,
                         modifier = Modifier.padding(start = 4.dp)
@@ -182,15 +209,31 @@ fun TaskItem(task: TaskEntity, viewModel: HomeViewModel = hiltViewModel(), onCli
                 }
             }
 
-            // Change the icon button based on the task's completion status
+            Icon(
+                imageVector = Icons.Default.Delete,
+                tint = Color.Black,
+                contentDescription = null,
+                modifier = Modifier
+                    .padding(Dimen.SmallPadding)
+                    .clickable {
+                        viewModel.viewModelScope.launch {
+                            viewModel.channel.send(HomeIntent.DeleteTaskById(task.id!!))
+                        }
+                    }
+            )
 
             if (task.isDone == true) {
-
                 Text(
                     text = "Done!",
                     fontSize = Dimen.MediumFontSize,
                     color = colorResource(R.color.task_done),
-                    style = TextStyle(fontWeight = FontWeight.Bold)
+                    style = TextStyle(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.clickable {
+                        val updatedTask = task.copy(isDone = false)
+                        viewModel.viewModelScope.launch {
+                            viewModel.channel.send(HomeIntent.MarkTaskAsDone(updatedTask))
+                        }
+                    }
                 )
             } else {
                 Box(
@@ -203,18 +246,11 @@ fun TaskItem(task: TaskEntity, viewModel: HomeViewModel = hiltViewModel(), onCli
                 ) {
                     IconButton(
                         onClick = {
-                            // Convert the task entity to the domain model if needed
                             val updatedTask = task.copy(isDone = true)
                             viewModel.viewModelScope.launch {
                                 viewModel.channel.send(HomeIntent.MarkTaskAsDone(updatedTask))
                             }
-                        },
-                        colors = IconButtonColors(
-                            containerColor = Color.Transparent,
-                            contentColor = Color.Transparent,
-                            disabledContainerColor = Color.Transparent,
-                            disabledContentColor = Color.Transparent
-                        )
+                        }
                     ) {
                         Icon(
                             imageVector = Icons.Default.Check,
@@ -225,6 +261,27 @@ fun TaskItem(task: TaskEntity, viewModel: HomeViewModel = hiltViewModel(), onCli
                     }
                 }
             }
+        }
+    }
+}
+
+
+@Composable
+fun DeleteItem() {
+    Box(
+        modifier = Modifier.background(Color.Red)
+    ) {
+        Column(
+
+        ) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = null,
+                modifier = Modifier.padding(Dimen.MediumPadding),
+                tint = Color.White
+            )
+
+            Text(text = "Delete", color = Color.White)
         }
     }
 }

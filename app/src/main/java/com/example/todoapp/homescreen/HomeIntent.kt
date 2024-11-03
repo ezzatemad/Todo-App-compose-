@@ -9,4 +9,6 @@ sealed class HomeIntent {
 
     data class MarkTaskAsDone(val taskEntity: TaskEntity) : HomeIntent()
 
+    data class DeleteTaskById(val taskId: Long) : HomeIntent()
+
 }

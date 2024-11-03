@@ -7,6 +7,7 @@ import com.example.data.database.model.TaskEntity
 import com.example.data.toDomainModel
 import com.example.data.toEntity
 import com.example.domain.model.Task
+import com.example.domain.usecase.DeleteTaskUseCase
 import com.example.domain.usecase.GetAllTaskTaskUseCase
 import com.example.domain.usecase.UpdateTaskUseCase
 import com.example.todoapp.edittask.UpdateTaskStates
@@ -25,6 +26,7 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val getAllTaskTaskUseCase: GetAllTaskTaskUseCase,
     private val updateTaskUseCase: UpdateTaskUseCase,
+    private val deleteTaskByIdUseCase: DeleteTaskUseCase,
     val channel: Channel<HomeIntent>
 ) : ViewModel() {
 
@@ -45,10 +47,26 @@ class HomeViewModel @Inject constructor(
                 when (intent) {
                     is HomeIntent.LoadTasks -> loadAllTasks()
                     is HomeIntent.MarkTaskAsDone -> updateTaskIsDone(intent.taskEntity)
+                    is HomeIntent.DeleteTaskById -> deleteTaskById(intent.taskId)
                 }
             }
         }
     }
+
+    private fun deleteTaskById(taskId: Long) {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    deleteTaskByIdUseCase.deleteTaskUseCase(taskId)
+                }
+                loadAllTasks() // Reload tasks here
+                _state.value = HomeStates.DeleteTaskById(taskId) // Set state after reload
+            } catch (ex: Exception) {
+                _state.value = HomeStates.Error(ex.localizedMessage)
+            }
+        }
+    }
+
 
     private fun updateTaskIsDone(task: TaskEntity) {
         viewModelScope.launch {

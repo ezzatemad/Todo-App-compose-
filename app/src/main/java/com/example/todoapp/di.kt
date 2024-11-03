@@ -1,6 +1,7 @@
 package com.example.todoapp
 
 import com.example.domain.taskrepo.TaskRepo
+import com.example.domain.usecase.DeleteTaskUseCase
 import com.example.domain.usecase.GetAllTaskTaskUseCase
 import com.example.domain.usecase.InsertTaskUseCase
 import com.example.domain.usecase.UpdateTaskUseCase
@@ -15,6 +16,10 @@ import dagger.hilt.components.SingletonComponent
 object di {
 
 
+    @Provides
+    fun provideDeleteTaskById(taskRepo: TaskRepo): DeleteTaskUseCase {
+        return DeleteTaskUseCase(taskRepo)
+    }
 
 
     @Provides
