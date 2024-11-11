@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalWearMaterialApi::class)
 
 package com.example.todoapp.homescreen
 
@@ -9,6 +9,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -53,11 +56,16 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
+import androidx.wear.compose.material.ExperimentalWearMaterialApi
+import androidx.wear.compose.material.FractionalThreshold
+import androidx.wear.compose.material.rememberSwipeableState
+import androidx.wear.compose.material.swipeable
 import com.example.data.database.model.TaskEntity
 import com.example.domain.model.Task
 import com.example.todoapp.Dimen
@@ -75,7 +83,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    val tasks by viewModel.tasks.collectAsState() // Observe tasks directly
+    val tasks by viewModel.tasks.collectAsState()
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -89,9 +97,6 @@ fun HomeScreen(
     ) {
         when (state) {
             is HomeStates.Loading -> {
-//                item {
-//                    CircularProgressIndicator(modifier = Modifier.padding(16.dp))
-//                }
             }
 
             is HomeStates.Idle -> {
@@ -145,8 +150,6 @@ fun HomeScreen(
     }
 }
 
-
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TaskItem(
     task: TaskEntity,
@@ -155,115 +158,178 @@ fun TaskItem(
 ) {
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
+    var deleteVisible by remember { mutableStateOf(false) } // Track delete visibility
 
-    Card(
-        onClick = onClick,
+    val swipeableState = rememberSwipeableState(initialValue = 0)
+    val deleteWidth = 80.dp
+    val swipeThreshold = 150f
+
+    val anchors = mapOf(0f to 0, swipeThreshold to 1)
+
+    LaunchedEffect(swipeableState.offset.value) {
+        if (swipeableState.offset.value <= 0f) {
+            deleteVisible = false
+        }
+    }
+
+    val deleteTrigger = swipeableState.offset.value > swipeThreshold
+    if (deleteTrigger) {
+        deleteVisible = true
+    }
+
+    Box(
         modifier = Modifier
-            .fillMaxWidth(1f)
+            .fillMaxWidth()
+            .height(IntrinsicSize.Max)
             .padding(Dimen.MediumPadding)
-            .combinedClickable(
-                onClick = { onClick() },
-                onLongClick = { showMenu = true }  // Show dropdown on long click
-            ),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .height(IntrinsicSize.Max)
-                .padding(Dimen.LargePadding),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            VerticalLineWithCorners()
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = Dimen.MediumPadding)
-            ) {
-                Text(
-                    text = task.title ?: "No Name",
-                    fontSize = Dimen.MediumFontSize,
-                    color = if (task.isDone == true) colorResource(R.color.task_done) else colorResource(
-                        R.color.blue
-                    ),
-                    style = TextStyle(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.padding(Dimen.MediumPadding)
-                )
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(Dimen.MediumPadding)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_clock),
-                        contentDescription = null,
-                        tint = Color.Black
-                    )
-                    Text(
-                        text = formatDate(task.date ?: 0L),
-                        fontSize = 12.sp,
-                        color = Color.Black,
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
-                }
-            }
-
-            Icon(
-                imageVector = Icons.Default.Delete,
-                tint = Color.Black,
-                contentDescription = null,
-                modifier = Modifier
-                    .padding(Dimen.SmallPadding)
-                    .clickable {
-                        viewModel.viewModelScope.launch {
-                            viewModel.channel.send(HomeIntent.DeleteTaskById(task.id!!))
-                        }
-                    }
+            .swipeable(
+                state = swipeableState,
+                anchors = anchors,
+                thresholds = { _, _ -> FractionalThreshold(0.5f) },
+                orientation = Orientation.Horizontal,
+                enabled = true,
+                reverseDirection = false
             )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+        ) {
+            Card(
+                onClick = onClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(Dimen.MediumPadding)
+                    .clip(RoundedCornerShape(8.dp))
+                    .offset { IntOffset(swipeableState.offset.value.toInt(), 0) },
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(Dimen.LargePadding),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    VerticalLineWithCorners()
 
-            if (task.isDone == true) {
-                Text(
-                    text = "Done!",
-                    fontSize = Dimen.MediumFontSize,
-                    color = colorResource(R.color.task_done),
-                    style = TextStyle(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.clickable {
-                        val updatedTask = task.copy(isDone = false)
-                        viewModel.viewModelScope.launch {
-                            viewModel.channel.send(HomeIntent.MarkTaskAsDone(updatedTask))
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = Dimen.MediumPadding)
+                    ) {
+                        Text(
+                            text = task.title ?: "No Name",
+                            fontSize = Dimen.MediumFontSize,
+                            color = if (task.isDone == true) colorResource(R.color.task_done) else colorResource(
+                                R.color.blue
+                            ),
+                            style = TextStyle(fontWeight = FontWeight.Bold),
+                            modifier = Modifier.padding(Dimen.MediumPadding)
+                        )
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(Dimen.MediumPadding)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_clock),
+                                contentDescription = null,
+                                tint = Color.Black
+                            )
+                            Text(
+                                text = formatDate(task.date ?: 0L),
+                                fontSize = 12.sp,
+                                color = Color.Black,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
                         }
                     }
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .width(55.dp)
-                        .height(30.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(colorResource(R.color.blue)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    IconButton(
-                        onClick = {
-                            val updatedTask = task.copy(isDone = true)
-                            viewModel.viewModelScope.launch {
-                                viewModel.channel.send(HomeIntent.MarkTaskAsDone(updatedTask))
+
+                    // Done button logic
+                    if (task.isDone == true) {
+                        Text(
+                            text = "Done!",
+                            fontSize = Dimen.MediumFontSize,
+                            color = colorResource(R.color.task_done),
+                            style = TextStyle(fontWeight = FontWeight.Bold),
+                            modifier = Modifier.clickable {
+                                val updatedTask = task.copy(isDone = false)
+                                viewModel.viewModelScope.launch {
+                                    viewModel.channel.send(HomeIntent.MarkTaskAsDone(updatedTask))
+                                }
+                            }
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .width(55.dp)
+                                .height(30.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(colorResource(R.color.blue)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    val updatedTask = task.copy(isDone = true)
+                                    viewModel.viewModelScope.launch {
+                                        viewModel.channel.send(HomeIntent.MarkTaskAsDone(updatedTask))
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Check",
+                                    tint = Color.White,
+                                    modifier = Modifier.padding(2.dp)
+                                )
                             }
                         }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Check",
-                            tint = Color.White,
-                            modifier = Modifier.padding(2.dp)
-                        )
                     }
                 }
             }
         }
+
+        if (deleteVisible) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(deleteWidth)
+                    .align(Alignment.CenterStart)
+                    .background(Color.Red, shape = RoundedCornerShape(8.dp))
+                    .padding(Dimen.LargePadding),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable {
+                            viewModel.viewModelScope.launch {
+                                viewModel.channel.send(HomeIntent.DeleteTaskById(task.id!!))
+                                deleteVisible = false
+                            }
+                        }
+                )
+            }
+        }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 @Composable

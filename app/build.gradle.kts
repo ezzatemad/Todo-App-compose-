@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.todoapp"
-        minSdk = 24
+        minSdk = 25
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -54,6 +54,7 @@ dependencies {
     implementation(project(":data"))
     implementation(project(":domain"))
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.compose.material)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -92,6 +93,11 @@ dependencies {
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
 
+
+    implementation("com.kizitonwose.calendar:view:2.6.0")
+
+    // The compose calendar library for Android
+    implementation("com.kizitonwose.calendar:compose:2.6.0")
 
 }
 kapt {
